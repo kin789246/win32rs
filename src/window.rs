@@ -1,7 +1,10 @@
 use windows::core::*;
 use windows::Win32::{
     Foundation::*,
-    UI::WindowsAndMessaging::*,
+    UI::{
+        WindowsAndMessaging::*,
+        Input::KeyboardAndMouse::*,
+    },
     System::LibraryLoader::*,
     Graphics::Gdi::*,
 };
@@ -109,6 +112,24 @@ impl Wndrs {
                     EndPaint(self.handle, &ps).unwrap();
                     LRESULT(0)
                 },
+                WM_MENUCHAR => {
+                    // The high-order word of wParam contains the character that was pressed
+                    let _char_code = (wparam.0 >> 16) as u16;
+                    
+                    // The low-order word of wParam indicates the menu flag
+                    let _menu_flag = (wparam.0 & 0xFFFF) as u16;
+                    
+                    // lparam contains a handle to the menu
+                    let _hmenu = HMENU(lparam.0 as _);
+
+                    // Here you would typically check if the character matches any of your menu accelerators
+                    // For this example, we're just going to close the menu
+                    
+                    // Return MNC_CLOSE to close the menu
+                    // The high-order word is 0 (no item matched)
+                    // The low-order word is MNC_CLOSE
+                    LRESULT((0 << 16) | MNC_SELECT as isize)
+                },
                 WM_COMMAND => {
                     match wparam.0 as usize {
                         Self::ID_MENU_OPEN => {
@@ -124,6 +145,17 @@ impl Wndrs {
                             PostQuitMessage(0);
                         }
                         _ => (),
+                    }
+                    LRESULT(0)
+                },
+                WM_SYSKEYDOWN => {
+                    if wparam.0 as u16 == VK_MENU.0 { // VK_MENU is the virtual key code for the Alt key
+                        // Show the menu
+                        let hmenu = GetMenu(self.handle);
+                        if !hmenu.is_invalid() {
+                            // Activate the menu
+                            SendMessageW(self.handle, WM_SYSCOMMAND, wparam, lparam);
+                        }
                     }
                     LRESULT(0)
                 },
@@ -184,9 +216,13 @@ impl Wndrs {
             let mut message = MSG::default();
 
             while GetMessageW(&mut message, None, 0, 0).into() {
-                // translates keystrokes (key down, key up) into characters
-                let _ = TranslateMessage(&message);
-                DispatchMessageW(&message);
+                if !<BOOL as Into<bool>>::into(
+                    IsDialogMessageW(handle, &mut message)
+                ) {
+                    // translates keystrokes (key down, key up) into characters
+                    let _ = TranslateMessage(&message);
+                    DispatchMessageW(&message);
+                }
             }
             Ok(())
         }
