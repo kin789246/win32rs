@@ -6,6 +6,7 @@ use windows::Win32::{
     Graphics::Gdi::*,
 };
 use std::mem::zeroed;
+use win_str::*;
 use crate::*;
 
 #[derive(Default)]
@@ -13,7 +14,7 @@ pub struct StateData {
     text: HSTRING,
 }
 
-pub(crate) struct HSTRData {
+pub(crate) struct StrResource {
     pub(crate) open: HSTRING,
     pub(crate) save: HSTRING,
     pub(crate) exit: HSTRING,
@@ -22,7 +23,7 @@ pub(crate) struct HSTRData {
     pub(crate) clicked: HSTRING,
 }
 
-impl HSTRData {
+impl StrResource {
     pub(crate) fn new() -> Self {
         Self {
             open: HSTRING::from("開啟"),
@@ -39,7 +40,7 @@ pub struct Wndrs {
     handle: HWND,
     title: HSTRING, 
     state: StateData,
-    local: HSTRData,
+    local: StrResource,
 }
 
 impl Wndrs {
@@ -54,7 +55,7 @@ impl Wndrs {
                 handle: Default::default(),
                 title: HSTRING::from(t),
                 state: StateData { text: HSTRING::from("測試RUST中文介面") },
-                local: HSTRData::new(),
+                local: StrResource::new(),
             }
         )
     }
@@ -67,7 +68,7 @@ impl Wndrs {
     ) -> LRESULT {
         unsafe {
             if message == WM_NCCREATE {
-                let cs = lparam.0 as *const CREATESTRUCTA;
+                let cs = lparam.0 as *const CREATESTRUCTW;
                 let this = (*cs).lpCreateParams as *mut Self;
                 (*this).handle = window;
 
@@ -111,13 +112,13 @@ impl Wndrs {
                 WM_COMMAND => {
                     match wparam.0 as usize {
                         Self::ID_MENU_OPEN => {
-                            popup::pop_info(&self.local.open);
+                            dialog::pop_info(self.handle, &self.local.open);
                         },
                         Self::ID_MENU_SAVE => {
-                            popup::pop_info(&self.local.save);
+                            dialog::pop_info(self.handle, &self.local.save);
                         },
                         Self::ID_BTN_LOAD => {
-                            popup::pop_info(&self.local.clicked);
+                            dialog::pop_info(self.handle, &self.local.clicked);
                         },
                         Self::ID_MENU_EXIT => {
                             PostQuitMessage(0);
@@ -131,7 +132,7 @@ impl Wndrs {
         }
     }
 
-    pub fn create_window(&mut self) -> Result<()> {
+    pub fn build(&mut self) -> Result<()> {
         unsafe {
             let instance = GetModuleHandleW(None)?;
 
@@ -163,14 +164,14 @@ impl Wndrs {
                 Some(self as *mut _ as _),
             )?;
             
-            self.creat_button(
+            control::creat_button(
                 handle, 
                 instance, 
-                win_str::hstr_to_pcwstr(&self.local.btn_txt), 
+                hstr_to_pcwstr(&self.local.btn_txt), 
                 10, 
                 10, 
-                80, 
-                80,
+                40, 
+                30,
                 HMENU(Self::ID_BTN_LOAD as _)
             )?;
             
@@ -202,62 +203,31 @@ impl Wndrs {
                 hmenu_file, 
                 MF_STRING, 
                 Self::ID_MENU_OPEN, 
-                win_str::hstr_to_pcwstr(&self.local.open)
+                hstr_to_pcwstr(&self.local.open)
             )?;
             AppendMenuW(
                 hmenu_file, 
                 MF_STRING, 
                 Self::ID_MENU_SAVE, 
-                win_str::hstr_to_pcwstr(&self.local.save)
+                hstr_to_pcwstr(&self.local.save)
             )?;
-            AppendMenuW(hmenu_file, MF_SEPARATOR, 0, win_str::str_to_pcwstr(""))?;
+            AppendMenuW(hmenu_file, MF_SEPARATOR, 0, str_to_pcwstr(""))?;
             AppendMenuW(
                 hmenu_file, 
                 MF_STRING, 
                 Self::ID_MENU_EXIT, 
-                win_str::hstr_to_pcwstr(&self.local.exit)
+                hstr_to_pcwstr(&self.local.exit)
             )?;
 
             // Attach the submenu to the main menu
             AppendMenuW(hmenu, 
                 MF_POPUP, 
                 hmenu_file.0 as usize, 
-                win_str::hstr_to_pcwstr(&self.local.file)
+                hstr_to_pcwstr(&self.local.file)
             )?;
 
             // Return the menu handle
             Ok(hmenu)
-        }
-    }
-
-    fn creat_button(
-        &self,
-        handle: HWND, 
-        instance: HMODULE,
-        btn_txt: PCWSTR,
-        x: i32,
-        y: i32,
-        width: i32,
-        height: i32,
-        btn_id: HMENU,
-    ) -> Result<()> {
-        unsafe {
-            // create a button
-            CreateWindowExW( 
-                WINDOW_EX_STYLE::default(),
-                w!("BUTTON"),  // Predefined class; Unicode assumed 
-                btn_txt,      // Button text 
-                WINDOW_STYLE(WS_TABSTOP.0 | WS_VISIBLE.0 | WS_CHILD.0 | BS_DEFPUSHBUTTON as u32),  // Styles 
-                x,         // x position 
-                y,         // y position 
-                width,        // Button width
-                height,        // Button height
-                handle,       // Parent window
-                btn_id, // BUTTON_ID as menu.
-                instance, 
-                None // Pointer not needed.
-            )?;      
-            Ok(())
         }
     }
 }

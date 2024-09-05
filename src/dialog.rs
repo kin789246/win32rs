@@ -1,5 +1,6 @@
 use windows::core::*;
 use windows::Win32::{
+    Foundation::*,
     UI::{
         WindowsAndMessaging::*,
         Shell::*,
@@ -9,34 +10,38 @@ use windows::Win32::{
 };
 
 use crate::*;
+use win_str::*;
 
-pub fn pop_yesno(msg: &HSTRING) -> MESSAGEBOX_RESULT {
+pub fn pop_yesno<T>(hwnd: T, msg: &HSTRING) -> MESSAGEBOX_RESULT
+where T: Param<HWND> {
     unsafe {
         MessageBoxW(
-            None,
-            win_str::hstr_to_pcwstr(msg),
+            hwnd,
+            hstr_to_pcwstr(msg),
             w!("Question"),
             MB_YESNO | MB_ICONQUESTION,
         )
     }
 }
 
-pub fn pop_info(msg: &HSTRING) -> MESSAGEBOX_RESULT {
+pub fn pop_info<T>(hwnd: T, msg: &HSTRING) -> MESSAGEBOX_RESULT 
+where T: Param<HWND> {
     unsafe {
         MessageBoxW(
-            None,
-            win_str::hstr_to_pcwstr(msg),
+            hwnd,
+            hstr_to_pcwstr(msg),
             w!("Information"),
             MB_OK | MB_ICONINFORMATION,
         )
     }
 }
 
-pub fn pop_error(msg: &HSTRING) -> MESSAGEBOX_RESULT {
+pub fn pop_error<T>(hwnd: T, msg: &HSTRING) -> MESSAGEBOX_RESULT 
+where T: Param<HWND> {
     unsafe {
         MessageBoxW(
-            None,
-            win_str::hstr_to_pcwstr(msg),
+            hwnd,
+            hstr_to_pcwstr(msg),
             w!("Information"),
             MB_OK | MB_ICONERROR,
         )
@@ -63,10 +68,10 @@ pub fn file_open() -> Result<()> {
             let result = dialog.GetResult()?;
             let path = result.GetDisplayName(SIGDN_FILESYSPATH)?;
             let msg = format!("user picked: {}", path.display());
-            popup::pop_info(&HSTRING::from(msg));
+            pop_info(None, &str_to_hstring(&msg));
             CoTaskMemFree(Some(path.0 as _));
         } else {
-            popup::pop_info(&HSTRING::from("user canceled"));
+            pop_info(None, &str_to_hstring("user canceled"));
         }
 
         Ok(())
