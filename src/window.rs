@@ -51,6 +51,7 @@ impl Wndrs {
     const ID_MENU_OPEN: usize = 2;
     const ID_MENU_SAVE: usize = 3;
     const ID_MENU_EXIT: usize = 4;
+    const ID_BTN_2: usize = 5;
 
     pub fn new(t: &str) -> Result<Self> {
         Ok(
@@ -143,6 +144,9 @@ impl Wndrs {
                         },
                         Self::ID_MENU_EXIT => {
                             PostQuitMessage(0);
+                        },
+                        Self::ID_BTN_2 => {
+                            let _ = dialog::file_open();
                         }
                         _ => (),
                     }
@@ -207,6 +211,17 @@ impl Wndrs {
                 HMENU(Self::ID_BTN_LOAD as _)
             )?;
             
+            control::creat_button(
+                handle, 
+                instance, 
+                hstr_to_pcwstr(&self.local.btn_txt), 
+                100, 
+                10, 
+                40, 
+                30,
+                HMENU(Self::ID_BTN_2 as _)
+            )?;
+
             // Attach the menu to the window
             let hmenu = self.create_menu()?;
             SetMenu(handle, hmenu)?;
